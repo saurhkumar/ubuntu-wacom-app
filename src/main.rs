@@ -28,10 +28,16 @@ fn build_ui(app: &Application) {
     window.set_default_size(300, 200);
     window.set_border_width(10);
 
-    // Try to load and set an application icon
-    let icon_path = Path::new("resources/icon.png");
+    // Try to load and set the tablet application icon
+    let icon_path = Path::new("resources/wacom_tablet_icon.png");
     if icon_path.exists() {
         window.set_icon_from_file(icon_path).ok();
+    } else {
+        // Fallback to the original icon if the tablet icon doesn't exist
+        let fallback_icon_path = Path::new("resources/icon.png");
+        if fallback_icon_path.exists() {
+            window.set_icon_from_file(fallback_icon_path).ok();
+        }
     }
 
     // Create a vertical box
@@ -44,11 +50,23 @@ fn build_ui(app: &Application) {
 
     // Create a status label
     let label = Label::new(None);
-    label.set_markup("<span size='large'>Click the button to switch Wacom tablet mapping</span>");
+    
+    // Check if Wacom tablet is connected
+    match is_wacom_connected() {
+        true => label.set_markup("<span size='large'>Wacom tablet detected. Click the button to switch monitor mapping.</span>"),
+        false => label.set_markup("<span size='large' color='red'>No Wacom tablet detected. Please connect your device.</span>")
+    }
+    
     vbox.pack_start(&label, true, true, 0);
 
     // Connect button click event
     button.connect_clicked(move |_| {
+        // First check if tablet is connected
+        if !is_wacom_connected() {
+            label.set_markup("<span size='large' color='red'>No Wacom tablet detected. Please connect your device.</span>");
+            return;
+        }
+        
         // Execute the Wacom monitor switching command
         let output = switch_wacom_monitors();
         
@@ -68,6 +86,29 @@ fn build_ui(app: &Application) {
 }
 
 /// Function to switch Wacom monitors using xsetwacom
+/// Check if a Wacom tablet is connected
+fn is_wacom_connected() -> bool {
+    // Try to get list of Wacom devices
+    let devices_output = Command::new("xsetwacom")
+        .arg("list")
+        .output();
+    
+    // If command fails, return false
+    if let Err(_) = devices_output {
+        return false;
+    }
+    
+    let output = devices_output.unwrap();
+    if !output.status.success() {
+        return false;
+    }
+    
+    let devices_str = String::from_utf8_lossy(&output.stdout);
+    
+    // Return true if the output is not empty (meaning at least one device found)
+    !devices_str.trim().is_empty()
+}
+
 fn switch_wacom_monitors() -> Result<(), String> {
     // Get list of Wacom devices
     let devices_output = Command::new("xsetwacom")
