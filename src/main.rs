@@ -1,9 +1,13 @@
 use gio::prelude::*;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Button, Box as GtkBox, Label, Orientation};
+use gtk::{Application, ApplicationWindow, Button, Box as GtkBox, Label, Image, Orientation};
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::time::Duration;
+use glib::timeout_add_local;
 
 const APP_ID: &str = "org.example.WacomMonitorSwitcher";
 
@@ -21,11 +25,22 @@ fn main() {
     app.run();
 }
 
+fn create_connection_icon(connected: bool) -> Image {
+    let icon_name = if connected {
+        "gtk-yes" // Green checkmark icon
+    } else {
+        "gtk-no"  // Red X icon
+    };
+    
+    let image = Image::from_icon_name(Some(icon_name), gtk::IconSize::Dialog);
+    image
+}
+
 fn build_ui(app: &Application) {
     // Create a window
     let window = ApplicationWindow::new(app);
     window.set_title("Wacom Monitor Switcher");
-    window.set_default_size(300, 200);
+    window.set_default_size(400, 250);
     window.set_border_width(10);
 
     // Try to load and set the tablet application icon
@@ -43,22 +58,84 @@ fn build_ui(app: &Application) {
     // Create a vertical box
     let vbox = GtkBox::new(Orientation::Vertical, 10);
     window.add(&vbox);
-
+    
+    // Create a connection status area (horizontal box)
+    let status_box = GtkBox::new(Orientation::Horizontal, 5);
+    vbox.pack_start(&status_box, false, false, 5);
+    
+    // Check initial connection status
+    let is_connected = is_wacom_connected();
+    
+    // Create connection icon
+    let status_icon = create_connection_icon(is_connected);
+    status_box.pack_start(&status_icon, false, false, 5);
+    
+    // Create connection status label
+    let status_label = Label::new(None);
+    if is_connected {
+        status_label.set_markup("<span size='large'>Wacom tablet connected</span>");
+    } else {
+        status_label.set_markup("<span size='large' color='red'>No Wacom tablet detected</span>");
+    }
+    status_box.pack_start(&status_label, true, true, 5);
+    
+    // Add a separator
+    let separator = gtk::Separator::new(Orientation::Horizontal);
+    vbox.pack_start(&separator, false, false, 5);
+    
     // Create a button
     let button = Button::with_label("Switch Wacom Monitor");
     vbox.pack_start(&button, true, true, 0);
-
-    // Create a status label
+    
+    // Create a status label for switch operations
     let label = Label::new(None);
-    
-    // Check if Wacom tablet is connected
-    match is_wacom_connected() {
-        true => label.set_markup("<span size='large'>Wacom tablet detected. Click the button to switch monitor mapping.</span>"),
-        false => label.set_markup("<span size='large' color='red'>No Wacom tablet detected. Please connect your device.</span>")
-    }
-    
+    label.set_markup("<span size='large'>Click the button to switch monitor mapping</span>");
     vbox.pack_start(&label, true, true, 0);
+    
+    // Set up periodic connection checking
+    let status_icon_ref = status_icon.clone();
+    let status_label_ref = status_label.clone();
+    let _label_ref = label.clone(); // Keep for potential future use
+    let button_ref = button.clone();
+    
+    // Create a shared state for the connection status
+    let was_connected = Rc::new(RefCell::new(is_connected));
 
+    // Create a copy of shared state for the timeout function
+    let was_connected_timeout = was_connected.clone();
+    let status_icon_timeout = status_icon_ref.clone();
+    let status_label_timeout = status_label_ref.clone();
+    let button_timeout = button_ref.clone();
+    
+    // Set up periodic connection check (every 1 second)
+    timeout_add_local(Duration::from_millis(1000), move || {
+        // Check if tablet connection status changed
+        let current_status = is_wacom_connected();
+        let mut previous_status = was_connected_timeout.borrow_mut();
+        
+        // If connection status has changed, update the UI
+        if current_status != *previous_status {
+            // Update the icon
+            // Using direct icon name setting instead of creating a new icon object
+            status_icon_timeout.set_from_icon_name(Some(if current_status { "gtk-yes" } else { "gtk-no" }), gtk::IconSize::Dialog);
+            
+            // Update the status label
+            if current_status {
+                status_label_timeout.set_markup("<span size='large' color='green'>Wacom tablet connected</span>");
+                button_timeout.set_sensitive(true);
+            } else {
+                status_label_timeout.set_markup("<span size='large' color='red'>No Wacom tablet detected</span>");
+                button_timeout.set_sensitive(false);
+            }
+            
+            // Update the stored status
+            *previous_status = current_status;
+        }
+        
+        // Return true to keep the timeout active
+        glib::Continue(true)
+    });
+    
     // Connect button click event
     button.connect_clicked(move |_| {
         // First check if tablet is connected
@@ -80,6 +157,9 @@ fn build_ui(app: &Application) {
             }
         }
     });
+    
+    // Initially set button sensitivity based on connection status
+    button.set_sensitive(is_connected);
 
     // Show all widgets
     window.show_all();
