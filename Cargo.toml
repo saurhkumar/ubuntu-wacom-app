@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 gtk = "0.17.0"
-glib = "0.17.0"
+glib = "0.20.0"
 gio = "0.17.0"
