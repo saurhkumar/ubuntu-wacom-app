@@ -43,17 +43,39 @@ fn build_ui(app: &Application) {
     window.set_default_size(400, 250);
     window.set_border_width(10);
 
-    // Try to load and set the tablet application icon
-    let icon_path = Path::new("resources/wacom_tablet_icon.png");
+    // Set the professional Wacom tablet application icon
+    window.set_title("Wacom Tablet Controller");
+    
+    // Use our professional high-quality icon
+    let icon_path = Path::new("resources/wacom_pro_icon_v2.png");
     if icon_path.exists() {
-        window.set_icon_from_file(icon_path).ok();
+        match window.set_icon_from_file(icon_path) {
+            Ok(_) => println!("Successfully set icon from wacom_pro_icon_v2.png"),
+            Err(e) => println!("Failed to set icon: {}", e)
+        }
     } else {
-        // Fallback to the original icon if the tablet icon doesn't exist
-        let fallback_icon_path = Path::new("resources/icon.png");
-        if fallback_icon_path.exists() {
-            window.set_icon_from_file(fallback_icon_path).ok();
+        // Fallback icons if our professional icon doesn't exist
+        let fallback_paths = [
+            "resources/wacom_pro_icon.png",
+            "resources/new_wacom_icon.png",
+            "resources/wacom_tablet_icon.png",
+            "resources/tablet_icon.png", 
+            "resources/icon.png"
+        ];
+        
+        for path in fallback_paths.iter() {
+            let fallback_path = Path::new(path);
+            if fallback_path.exists() {
+                if window.set_icon_from_file(fallback_path).is_ok() {
+                    println!("Using fallback icon: {}", path);
+                    break;
+                }
+            }
         }
     }
+    
+    // Also try to set the icon name for theme integration
+    window.set_icon_name(Some("input-tablet"));
 
     // Create a vertical box
     let vbox = GtkBox::new(Orientation::Vertical, 10);
