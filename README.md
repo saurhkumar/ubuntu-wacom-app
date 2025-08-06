@@ -1,6 +1,6 @@
-# Hello World Ubuntu App
+# Ubuntu Wacom Tablet App
 
-A simple Rust GTK application that shows "Hello World" when a button is clicked.
+A simple Rust GTK application that allows switching the mapping of Wacom tablets between monitors.
 
 ## Prerequisites
 
@@ -21,18 +21,19 @@ source $HOME/.cargo/env
 ## Building the Application
 
 ```bash
-cd /path/to/hello_world_app
+cd /path/to/ubuntu-wacom-app
 cargo build --release
 ```
 
 ## Running the Application
 
 ```bash
-./target/release/hello_world_app
+./target/release/wacom_tablet_app
 ```
 
 ## Features
 
 - Simple GTK-based UI
-- Button that toggles visibility of a "Hello, World!" message when clicked
+- Button that switches Wacom tablet mapping between monitors
+- Shows status updates for successful or failed operations
 - Includes an application icon

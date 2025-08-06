@@ -2,12 +2,12 @@ CC = gcc
 CFLAGS = `pkg-config --cflags gtk+-3.0` -Wall -g
 LDFLAGS = `pkg-config --libs gtk+-3.0`
 
-TARGET = hello_world
+TARGET = wacom_tablet_app
 
 all: $(TARGET)
 
-$(TARGET): hello_world.c
-	$(CC) $(CFLAGS) -o $(TARGET) hello_world.c $(LDFLAGS)
+$(TARGET): wacom_tablet_app.c
+	$(CC) $(CFLAGS) -o $(TARGET) wacom_tablet_app.c $(LDFLAGS)
 
 clean:
 	rm -f $(TARGET)
